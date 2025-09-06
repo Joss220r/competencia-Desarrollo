@@ -19,7 +19,7 @@ namespace EncuestasAPI.Controllers
         }
 
         /// <summary>
-        /// Diagnóstico: Ver qué columnas y datos retorna el SP
+        /// Diagnóstico COMPLETO: Ver qué columnas y datos retorna el SP
         /// </summary>
         [HttpGet("sp-info/{tipoEncuestaId}")]
         public async Task<ActionResult> DiagnosticarStoredProcedure(int tipoEncuestaId)
@@ -151,6 +151,71 @@ namespace EncuestasAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { Conexion = "Fallida", Error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Ejecuta directamente el SP y retorna TODO lo que devuelve
+        /// </summary>
+        [HttpGet("sp-raw/{tipoEncuestaId}")]
+        public async Task<ActionResult> EjecutarSPDirecto(int tipoEncuestaId)
+        {
+            try
+            {
+                var todosLosDatos = new List<Dictionary<string, object>>();
+                var infoColumnas = new List<object>();
+
+                using var connection = new SqlConnection(_connectionString);
+                using var command = new SqlCommand("sp_ObtenerEncuestaPorTipo", connection)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                command.Parameters.AddWithValue("@TipoEncuestaID", tipoEncuestaId);
+
+                await connection.OpenAsync();
+                using var reader = await command.ExecuteReaderAsync();
+
+                // Obtener info de columnas
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    infoColumnas.Add(new
+                    {
+                        Indice = i,
+                        Nombre = reader.GetName(i),
+                        Tipo = reader.GetFieldType(i).Name
+                    });
+                }
+
+                // Leer TODOS los datos
+                while (await reader.ReadAsync())
+                {
+                    var fila = new Dictionary<string, object>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        var valor = reader.IsDBNull(i) ? "[NULL]" : reader.GetValue(i);
+                        fila[reader.GetName(i)] = valor;
+                    }
+                    todosLosDatos.Add(fila);
+                }
+
+                return Ok(new
+                {
+                    ParametroUsado = new { TipoEncuestaID = tipoEncuestaId },
+                    StoredProcedure = "sp_ObtenerEncuestaPorTipo",
+                    InfoColumnas = infoColumnas,
+                    TotalFilas = todosLosDatos.Count,
+                    TodosLosDatos = todosLosDatos
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new 
+                { 
+                    Error = ex.Message,
+                    StackTrace = ex.StackTrace,
+                    InnerException = ex.InnerException?.Message
+                });
             }
         }
     }

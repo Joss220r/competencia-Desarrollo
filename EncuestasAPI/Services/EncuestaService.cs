@@ -22,74 +22,117 @@ namespace EncuestasAPI.Services
 
         public async Task<Encuesta?> ObtenerEncuestaPorTipoAsync(int tipoEncuestaId)
         {
-            Encuesta? encuesta = null;
-            var preguntas = new Dictionary<int, Pregunta>();
-
-            using var connection = new SqlConnection(_connectionString);
-            using var command = new SqlCommand("sp_ObtenerEncuestaPorTipo", connection)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
-            
-            command.Parameters.AddWithValue("@TipoEncuestaID", tipoEncuestaId);
-
-            await connection.OpenAsync();
-            using var reader = await command.ExecuteReaderAsync();
-
-            // Obtener información sobre las columnas
-            var fieldNames = new Dictionary<string, int>();
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                fieldNames[reader.GetName(i)] = i;
-            }
-
-            while (await reader.ReadAsync())
-            {
-                // Primera vez que leemos la encuesta
-                if (encuesta == null)
+                using var connection = new SqlConnection(_connectionString);
+                using var command = new SqlCommand("sp_ObtenerEncuestaPorTipo", connection)
                 {
-                    encuesta = new Encuesta
-                    {
-                        EncuestaID = GetSafeInt32(reader, fieldNames, "EncuestaID"),
-                        Titulo = GetSafeString(reader, fieldNames, "Titulo") ?? "Sin título",
-                        Descripcion = GetSafeString(reader, fieldNames, "Descripcion") ?? "Sin descripción",
-                        TipoEncuestaID = tipoEncuestaId
-                    };
-                }
-
-                var preguntaId = GetSafeInt32(reader, fieldNames, "PreguntaID");
+                    CommandType = CommandType.StoredProcedure
+                };
                 
-                if (preguntaId > 0)
-                {
-                    // Agregar pregunta si no existe
-                    if (!preguntas.ContainsKey(preguntaId))
-                    {
-                        var pregunta = new Pregunta
-                        {
-                            PreguntaID = preguntaId,
-                            TextoPregunta = GetSafeString(reader, fieldNames, "TextoPregunta") ?? "Sin pregunta",
-                            EncuestaID = encuesta.EncuestaID
-                        };
-                        preguntas[preguntaId] = pregunta;
-                        encuesta.Preguntas.Add(pregunta);
-                    }
+                command.Parameters.AddWithValue("@TipoEncuestaID", tipoEncuestaId);
 
-                    // Agregar opción a la pregunta
-                    var opcionId = GetSafeInt32(reader, fieldNames, "OpcionID");
-                    if (opcionId > 0)
+                await connection.OpenAsync();
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    // El SP devuelve un JSON en la columna "JsonResult"
+                    if (!reader.IsDBNull("JsonResult"))
                     {
-                        var opcion = new Opcion
+                        var jsonResult = reader.GetString("JsonResult");
+                        
+                        // Parsear el JSON usando JsonDocument
+                        using var doc = System.Text.Json.JsonDocument.Parse(jsonResult);
+                        var root = doc.RootElement;
+                        
+                        var encuesta = new Encuesta
                         {
-                            OpcionID = opcionId,
-                            TextoOpcion = GetSafeString(reader, fieldNames, "TextoOpcion") ?? "Sin opción",
-                            PreguntaID = preguntaId
+                            EncuestaID = root.GetProperty("EncuestaID").GetInt32(),
+                            Titulo = root.GetProperty("Nombre").GetString() ?? "Sin título",
+                            Descripcion = root.GetProperty("Descripcion").GetString() ?? "Sin descripción",
+                            TipoEncuestaID = tipoEncuestaId,
+                            Preguntas = new List<Pregunta>()
                         };
-                        preguntas[preguntaId].Opciones.Add(opcion);
+
+                        // Procesar preguntas
+                        if (root.TryGetProperty("Preguntas", out var preguntasJson))
+                        {
+                            foreach (var preguntaJson in preguntasJson.EnumerateArray())
+                            {
+                                var pregunta = new Pregunta
+                                {
+                                    PreguntaID = preguntaJson.GetProperty("PreguntaID").GetInt32(),
+                                    TextoPregunta = preguntaJson.GetProperty("TextoPregunta").GetString() ?? "Sin pregunta",
+                                    EncuestaID = encuesta.EncuestaID,
+                                    Opciones = new List<Opcion>()
+                                };
+
+                                // Procesar opciones
+                                if (preguntaJson.TryGetProperty("Opciones", out var opcionesJson))
+                                {
+                                    foreach (var opcionJson in opcionesJson.EnumerateArray())
+                                    {
+                                        var opcion = new Opcion
+                                        {
+                                            OpcionID = opcionJson.GetProperty("OpcionID").GetInt32(),
+                                            TextoOpcion = opcionJson.GetProperty("TextoOpcion").GetString() ?? "Sin opción",
+                                            PreguntaID = pregunta.PreguntaID
+                                        };
+                                        pregunta.Opciones.Add(opcion);
+                                    }
+                                }
+
+                                encuesta.Preguntas.Add(pregunta);
+                            }
+                        }
+
+                        return encuesta;
                     }
                 }
-            }
 
-            return encuesta;
+                return null;
+            }
+            catch (Exception ex)
+            {
+                // Para debugging, devolver una encuesta con el error
+                return new Encuesta
+                {
+                    EncuestaID = 0,
+                    Titulo = $"Error: {ex.Message}",
+                    Descripcion = ex.StackTrace ?? "Sin stack trace",
+                    TipoEncuestaID = tipoEncuestaId,
+                    Preguntas = new List<Pregunta>()
+                };
+            }
+        }
+
+        private int BuscarYObtenerInt(IDataReader reader, List<string> columnas, string[] posiblesNombres)
+        {
+            foreach (var nombre in posiblesNombres)
+            {
+                var columna = columnas.FirstOrDefault(c => c.Equals(nombre, StringComparison.OrdinalIgnoreCase));
+                if (columna != null)
+                {
+                    var index = reader.GetOrdinal(columna);
+                    return reader.IsDBNull(index) ? 0 : reader.GetInt32(index);
+                }
+            }
+            return 0;
+        }
+
+        private string? BuscarYObtenerString(IDataReader reader, List<string> columnas, string[] posiblesNombres)
+        {
+            foreach (var nombre in posiblesNombres)
+            {
+                var columna = columnas.FirstOrDefault(c => c.Equals(nombre, StringComparison.OrdinalIgnoreCase));
+                if (columna != null)
+                {
+                    var index = reader.GetOrdinal(columna);
+                    return reader.IsDBNull(index) ? null : reader.GetString(index);
+                }
+            }
+            return null;
         }
 
         private int GetSafeInt32(IDataReader reader, Dictionary<string, int> fieldNames, string columnName)

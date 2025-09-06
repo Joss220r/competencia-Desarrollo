@@ -1,0 +1,34 @@
+# COMANDOS PARA PROBAR LA API DE ENCUESTAS
+# Copia y pega estos comandos en PowerShell una vez que la API esté ejecutándose
+
+# 1. Probar conexión
+curl "http://localhost:5086/api/diagnostico/test-connection"
+
+# 2. Ver qué columnas retorna el SP para tipo 1
+curl "http://localhost:5086/api/diagnostico/sp-info/1"
+
+# 3. Ver qué columnas retorna el SP para tipo 2  
+curl "http://localhost:5086/api/diagnostico/sp-info/2"
+
+# 4. Ver qué columnas retorna el SP para tipo 3
+curl "http://localhost:5086/api/diagnostico/sp-info/3"
+
+# 5. Probar endpoint principal de encuestas
+curl "http://localhost:5086/api/encuestas/1"
+curl "http://localhost:5086/api/encuestas/2"
+curl "http://localhost:5086/api/encuestas/3"
+
+# 6. Ver resumen de encuestas
+curl "http://localhost:5086/api/diagnostico/sp-resumen-info/1"
+curl "http://localhost:5086/api/diagnostico/sp-resumen-info/2"
+
+# 7. Probar endpoint de responder (POST)
+curl -X POST "http://localhost:5086/api/encuestas/responder" ^
+     -H "Content-Type: application/json" ^
+     -d "{\"usuarioID\":\"test123\",\"respuestas\":[{\"opcionID\":1,\"seleccionado\":1},{\"opcionID\":2,\"seleccionado\":0}]}"
+
+# URLs para abrir en navegador:
+# http://localhost:5086/
+# http://localhost:5086/api/diagnostico/test-connection
+# http://localhost:5086/api/diagnostico/sp-info/1
+# http://localhost:5086/api/encuestas/1
