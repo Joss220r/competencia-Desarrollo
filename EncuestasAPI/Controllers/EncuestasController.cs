@@ -45,7 +45,7 @@ namespace EncuestasAPI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener encuesta por tipo {TipoId}", id);
-                return StatusCode(500, "Error interno del servidor");
+                return StatusCode(500, "Error interno del servidor 2");
             }
         }
 

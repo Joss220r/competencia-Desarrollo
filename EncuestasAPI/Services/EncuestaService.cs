@@ -36,6 +36,13 @@ namespace EncuestasAPI.Services
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
 
+            // Obtener información sobre las columnas
+            var fieldNames = new Dictionary<string, int>();
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                fieldNames[reader.GetName(i)] = i;
+            }
+
             while (await reader.ReadAsync())
             {
                 // Primera vez que leemos la encuesta
@@ -43,42 +50,64 @@ namespace EncuestasAPI.Services
                 {
                     encuesta = new Encuesta
                     {
-                        EncuestaID = reader.GetInt32("EncuestaID"),
-                        Titulo = reader.GetString("Titulo"),
-                        Descripcion = reader.GetString("Descripcion"),
-                        TipoEncuestaID = reader.GetInt32("TipoEncuestaID")
+                        EncuestaID = GetSafeInt32(reader, fieldNames, "EncuestaID"),
+                        Titulo = GetSafeString(reader, fieldNames, "Titulo") ?? "Sin título",
+                        Descripcion = GetSafeString(reader, fieldNames, "Descripcion") ?? "Sin descripción",
+                        TipoEncuestaID = tipoEncuestaId
                     };
                 }
 
-                var preguntaId = reader.GetInt32("PreguntaID");
+                var preguntaId = GetSafeInt32(reader, fieldNames, "PreguntaID");
                 
-                // Agregar pregunta si no existe
-                if (!preguntas.ContainsKey(preguntaId))
+                if (preguntaId > 0)
                 {
-                    var pregunta = new Pregunta
+                    // Agregar pregunta si no existe
+                    if (!preguntas.ContainsKey(preguntaId))
                     {
-                        PreguntaID = preguntaId,
-                        TextoPregunta = reader.GetString("TextoPregunta"),
-                        EncuestaID = encuesta.EncuestaID
-                    };
-                    preguntas[preguntaId] = pregunta;
-                    encuesta.Preguntas.Add(pregunta);
-                }
+                        var pregunta = new Pregunta
+                        {
+                            PreguntaID = preguntaId,
+                            TextoPregunta = GetSafeString(reader, fieldNames, "TextoPregunta") ?? "Sin pregunta",
+                            EncuestaID = encuesta.EncuestaID
+                        };
+                        preguntas[preguntaId] = pregunta;
+                        encuesta.Preguntas.Add(pregunta);
+                    }
 
-                // Agregar opción a la pregunta
-                if (!reader.IsDBNull("OpcionID"))
-                {
-                    var opcion = new Opcion
+                    // Agregar opción a la pregunta
+                    var opcionId = GetSafeInt32(reader, fieldNames, "OpcionID");
+                    if (opcionId > 0)
                     {
-                        OpcionID = reader.GetInt32("OpcionID"),
-                        TextoOpcion = reader.GetString("TextoOpcion"),
-                        PreguntaID = preguntaId
-                    };
-                    preguntas[preguntaId].Opciones.Add(opcion);
+                        var opcion = new Opcion
+                        {
+                            OpcionID = opcionId,
+                            TextoOpcion = GetSafeString(reader, fieldNames, "TextoOpcion") ?? "Sin opción",
+                            PreguntaID = preguntaId
+                        };
+                        preguntas[preguntaId].Opciones.Add(opcion);
+                    }
                 }
             }
 
             return encuesta;
+        }
+
+        private int GetSafeInt32(IDataReader reader, Dictionary<string, int> fieldNames, string columnName)
+        {
+            if (fieldNames.TryGetValue(columnName, out int index) && !reader.IsDBNull(index))
+            {
+                return reader.GetInt32(index);
+            }
+            return 0;
+        }
+
+        private string? GetSafeString(IDataReader reader, Dictionary<string, int> fieldNames, string columnName)
+        {
+            if (fieldNames.TryGetValue(columnName, out int index) && !reader.IsDBNull(index))
+            {
+                return reader.GetString(index);
+            }
+            return null;
         }
 
         public async Task<string> ObtenerResumenEncuestaAsync(int encuestaId)
