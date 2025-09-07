@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Integración - Encuestas</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .test-result {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            border-left: 5px solid;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0.5rem;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Prueba de Integración Frontend-Backend</h1>
+        <p>Esta página verifica que el frontend y backend estén funcionando correctamente.</p>
+        
+        <div class="test-actions">
+            <button onclick="testConnection()">🔗 Probar Conexión</button>
+            <button onclick="testEncuesta()">📋 Probar Encuesta</button>
+            <button onclick="testRespuesta()">📤 Probar Respuesta</button>
+            <button onclick="testResumen()">📊 Probar Resumen</button>
+            <button onclick="runAllTests()">🚀 Ejecutar Todas</button>
+            <button onclick="clearResults()">🗑️ Limpiar</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+    
+    <div class="test-container">
+        <h2>📋 Instrucciones</h2>
+        <ol>
+            <li><strong>Asegúrate de que la API esté ejecutándose</strong> en <code>http://localhost:5088</code></li>
+            <li>Ejecuta las pruebas usando los botones de arriba</li>
+            <li>Si todo funciona, abre <code>index.html</code> en tu navegador</li>
+            <li>Para servir la aplicación localmente, usa: <code>python -m http.server 8000</code></li>
+        </ol>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5085/api';
+        const results = document.getElementById('results');
+        
+        function addResult(title, status, message, data = null) {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            
+            let content = `<h3>${title}</h3><p>${message}</p>`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            div.innerHTML = content;
+            results.appendChild(div);
+        }
+        
+        async function testConnection() {
+            try {
+                addResult('🔗 Conexión', 'info', 'Probando conexión con la API...');
+                
+                const response = await fetch(`${API_BASE}/encuestas/1`);
+                
+                if (response.ok) {
+                    addResult('🔗 Conexión', 'success', `Conexión exitosa - Estado: ${response.status}`);
+                    return true;
+                } else {
+                    addResult('🔗 Conexión', 'error', `Error HTTP: ${response.status} - ${response.statusText}`);
+                    return false;
+                }
+            } catch (error) {
+                addResult('🔗 Conexión', 'error', `Error de conexión: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function testEncuesta() {
+            try {
+                addResult('📋 Encuesta', 'info', 'Cargando encuesta de prueba...');
+                
+                const response = await fetch(`${API_BASE}/encuestas/1`);
+                const data = await response.json();
+                
+                if (data && data.encuestaID && data.titulo && data.preguntas) {
+                    addResult('📋 Encuesta', 'success', 
+                        `Encuesta cargada: "${data.titulo}" con ${data.preguntas.length} preguntas`, 
+                        {
+                            encuestaID: data.encuestaID,
+                            titulo: data.titulo,
+                            preguntas: data.preguntas.length,
+                            primerasPregunta: data.preguntas[0]?.textoPregunta
+                        }
+                    );
+                    return data;
+                } else {
+                    addResult('📋 Encuesta', 'error', 'Estructura de datos inválida', data);
+                    return null;
+                }
+            } catch (error) {
+                addResult('📋 Encuesta', 'error', `Error: ${error.message}`);
+                return null;
+            }
+        }
+        
+        async function testRespuesta() {
+            try {
+                addResult('📤 Respuesta', 'info', 'Enviando respuesta de prueba...');
+                
+                const testData = {
+                    usuarioID: `test_user_${Date.now()}`,
+                    respuestas: [
+                        { opcionID: 1, seleccionado: 1 },
+                        { opcionID: 2, seleccionado: 1 }
+                    ]
+                };
+                
+                const response = await fetch(`${API_BASE}/encuestas/responder`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.mensaje) {
+                    addResult('📤 Respuesta', 'success', 
+                        `Respuesta enviada exitosamente: ${result.mensaje}`,
+                        result
+                    );
+                    return true;
+                } else {
+                    addResult('📤 Respuesta', 'error', 'Error al enviar respuesta', result);
+                    return false;
+                }
+            } catch (error) {
+                addResult('📤 Respuesta', 'error', `Error: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function testResumen() {
+            try {
+                addResult('📊 Resumen', 'info', 'Cargando resumen de prueba...');
+                
+                const response = await fetch(`${API_BASE}/encuestas/resumen/1`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('📊 Resumen', 'success', 
+                        'Resumen cargado exitosamente',
+                        typeof data === 'string' ? { json_string: data } : data
+                    );
+                    return true;
+                } else {
+                    addResult('📊 Resumen', 'error', 'Error al cargar resumen', data);
+                    return false;
+                }
+            } catch (error) {
+                addResult('📊 Resumen', 'error', `Error: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Pruebas', 'info', 'Iniciando suite completa de pruebas...');
+            
+            const results = {
+                connection: await testConnection(),
+                encuesta: await testEncuesta(),
+                respuesta: await testRespuesta(),
+                resumen: await testResumen()
+            };
+            
+            const passed = Object.values(results).filter(Boolean).length;
+            const total = Object.keys(results).length;
+            
+            if (passed === total) {
+                addResult('✅ Resultado Final', 'success', 
+                    `¡Todas las pruebas pasaron! (${passed}/${total}) - El sistema está funcionando correctamente.`
+                );
+            } else {
+                addResult('❌ Resultado Final', 'error', 
+                    `Algunas pruebas fallaron (${passed}/${total}). Revisa la configuración.`
+                );
+            }
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        // Auto-ejecutar prueba de conexión al cargar
+        window.addEventListener('load', () => {
+            addResult('🎯 Sistema', 'info', 'Página de pruebas cargada. Haz clic en "Probar Conexión" para comenzar.');
+        });
+    </script>
+</body>
+</html>

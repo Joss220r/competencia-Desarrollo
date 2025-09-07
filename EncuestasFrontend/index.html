@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuestas Académicas</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1>📊 Encuestas Académicas</h1>
+            <p>Sistema de evaluación docente</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="navigation">
+        <div class="container">
+            <div class="nav-buttons">
+                <button id="btnEncuesta1" class="nav-btn active" data-encuesta="1">
+                    📝 Conocimiento y Dominio
+                </button>
+                <button id="btnEncuesta2" class="nav-btn" data-encuesta="2">
+                    📝 Encuesta 2
+                </button>
+                <button id="btnEncuesta3" class="nav-btn" data-encuesta="3">
+                    📝 Encuesta 3
+                </button>
+                <button id="btnResultados" class="nav-btn results-btn">
+                    📈 Ver Resultados
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Loading Indicator -->
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Cargando...</p>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="error-message hidden">
+                <h3>❌ Error</h3>
+                <p id="errorText"></p>
+                <button id="btnRetry" class="btn btn-primary">Reintentar</button>
+            </div>
+
+            <!-- Encuesta View -->
+            <div id="encuestaView" class="encuesta-view">
+                <div class="encuesta-header">
+                    <h2 id="encuestaTitulo">Cargando encuesta...</h2>
+                    <p id="encuestaDescripcion"></p>
+                </div>
+
+                <form id="encuestaForm" class="encuesta-form">
+                    <div id="preguntasContainer" class="preguntas-container">
+                        <!-- Las preguntas se cargarán dinámicamente -->
+                    </div>
+
+                    <div class="usuario-input">
+                        <label for="usuarioID">Usuario ID:</label>
+                        <input type="text" id="usuarioID" placeholder="Ingresa tu ID de usuario" required>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success" id="btnEnviar">
+                            📤 Enviar Respuestas
+                        </button>
+                        <button type="reset" class="btn btn-secondary" id="btnReset">
+                            🔄 Limpiar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results View -->
+            <div id="resultadosView" class="resultados-view hidden">
+                <h2>📊 Resultados de Encuestas</h2>
+                
+                <div class="results-selector">
+                    <label for="selectResultados">Selecciona una encuesta:</label>
+                    <select id="selectResultados">
+                        <option value="1">Encuesta 1 - Conocimiento y Dominio</option>
+                        <option value="2">Encuesta 2</option>
+                        <option value="3">Encuesta 3</option>
+                    </select>
+                    <button id="btnCargarResultados" class="btn btn-primary">Cargar Resultados</button>
+                </div>
+
+                <div id="resultadosContainer" class="resultados-container">
+                    <!-- Los resultados se cargarán dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Success Message -->
+            <div id="successMessage" class="success-message hidden">
+                <h3>✅ ¡Éxito!</h3>
+                <p id="successText"></p>
+                <button id="btnContinuar" class="btn btn-primary">Continuar</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Sistema de Encuestas Académicas</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
