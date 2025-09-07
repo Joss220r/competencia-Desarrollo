@@ -1,6 +1,6 @@
 // Configuración de la API
 const API_CONFIG = {
-    baseURL: 'http://localhost:5088/api',
+    baseURL: 'http://localhost:5085/api',
     timeout: 10000
 };
 
@@ -260,7 +260,7 @@ const APIUtils = {
         let mensaje = 'Ha ocurrido un error inesperado';
         
         if (error.message.includes('conectar')) {
-            mensaje = 'No se puede conectar con el servidor. Verifica que la API esté ejecutándose en http://localhost:5088';
+            mensaje = 'No se puede conectar con el servidor. Verifica que la API esté ejecutándose en http://localhost:5085';
         } else if (error.message.includes('timeout')) {
             mensaje = 'La petición tardó demasiado tiempo. Inténtalo de nuevo.';
         } else if (error.message.includes('404')) {
